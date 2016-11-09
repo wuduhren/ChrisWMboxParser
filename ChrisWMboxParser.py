@@ -101,12 +101,40 @@ def more_payloads(message):
 
 
 # --------------------------------------Main--------------------------------------
-writer = csv.writer(open("mbox-output.csv", "wb"))
+writer = csv.writer(open("mboxOutput.csv", "wb"))
 writer.writerow(["message-id", "subject", "from", "body"])
 
-for message in mailbox.mbox('aaa.mbox'):
+
+for message in mailbox.mbox('YourMboxFile.mbox'):
 	body = more_payloads(message)
 	writer.writerow([message['message-id'], decodeSubject(message['subject']), decodeFrom(message['from']), decodeBody(body)])
 
 
+# --------------------------------------Readme--------------------------------------
+'''
+
+0. This is a tool you can convert Gmail .mbox file in to .csv file. 
+Especially mails that are mixed up with 中文 and English.
+Those decoding and encoding are insane, but it works for me.
+I am a beginner, if there are better way to do it, please let me know.
+
+1. If your mails are mostly mixed up with '中文' and English, this should work.
+
+2. If your mails are mostly in English you don't need most of the decode function.
+just simply: writer.writerow([message['message-id'], message['subject'], message['from'], body])
+and add 'decode=True' in get_payload, so your def more_payloads become:
+	def more_payloads(message):
+		body = ""
+		if message.is_multipart():
+			for payload in message.get_payload():
+				body += more_payloads(payload)
+		else:
+			if message.get_content_type() == 'text/plain':
+				body = message.get_payload(decode=True)
+		return body
+
+3. Others:
+For example, if your mails are Japanese + English just change big-5 to shift-jis...etc.
+
+'''
 
