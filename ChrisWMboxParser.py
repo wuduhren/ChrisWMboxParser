@@ -6,23 +6,40 @@ import quopri
 import base64
 import csv
 
-# This is the weird part...
-def decodeBody(string):
-	string = quopri.decodestring(string).decode('big5', 'ignore').encode('utf-8')
-	# decode string like '=B3o=ACO=BDd=A8=D2=ABH'
-	# .encode('utf-8') because python 2.7 doesn't support unicode input
+mboxFileName = '/Users/eph/desktop/quiz_ranger_mails/quiz_ranger_mails_ios/郵件/e- 題目.mbox'
+outPutCSVFileName = '/Users/eph/desktop/quiz_ranger_mails/quiz_ranger_mails_ios_csv/題目.csv'
 
-	if ' ' not in string:
-		try:
-			string += "=" * ((4 - len(string) % 4) % 4)
-			return base64.decodestring(string).decode('big5', 'ignore').encode('utf-8')
-			# decode string like 'DQrpgJnkupvmmK/mgqjmiYDoqILplrHnmoTmnIDmlrDlvbHniYfjgILoi6XopoHorormm7Tmgqjn' 
-			# those string don't have space as far as I can tell
-		except:
-			return string
+def findStringBetween(string, firstString, lastString):
+    try:
+        start = string.index(firstString) + len(firstString)
+        end = string.index(lastString, start)
+        return string[start:end]
+    except ValueError:
+        return ""
+
+
+def contentType(message):
+	codingMethod = ['cp936', 'utf-8', 'big5'] #here is where you edit
+	contentType = findStringBetween(str(message), 'charset=', '\n')
+	for eachCodingMethod in codingMethod:
+		if eachCodingMethod in contentType.lower():
+			# print('contentType: ')
+			return eachCodingMethod
+
+def contentTransferEncoding(message):
+	if message['Content-Transfer-Encoding'] is not None:
+		return message['Content-Transfer-Encoding']
+	else:
+		return findStringBetween(str(message), 'Content-Transfer-Encoding: ', '\n')
+
+def decodeBody(string, contentType, contentTransferEncoding):
+	if contentTransferEncoding == 'quoted-printable':
+		return quopri.decodestring(string).decode(contentType, 'ignore').encode('utf-8')
+	elif contentTransferEncoding == 'base64':
+		string += "=" * ((4 - len(string) % 4) % 4)
+		return base64.decodestring(string).decode(contentType, 'ignore').encode('utf-8')
 	else:
 		return string
-
 
 def decodeFrom(string):
 	name = string.rsplit('<', 1)[0]
@@ -49,7 +66,7 @@ def decodeSubject(string):
 			return base64.decodestring(string).decode('big5').encode('utf-8')
 
 		elif '=?big5?B?' in string:
-			string = string.replace("=?big5?b?", "")
+			string = string.replace("=?big5?B?", "")
 			string += "=" * ((4 - len(string) % 4) % 4)
 			return base64.decodestring(string).decode('big5').encode('utf-8')
 
@@ -101,13 +118,26 @@ def more_payloads(message):
 
 
 # --------------------------------------Main--------------------------------------
-writer = csv.writer(open("mboxOutput.csv", "wb"))
+writer = csv.writer(open(outPutCSVFileName, "wb"))
 writer.writerow(["message-id", "subject", "from", "body"])
 
-
-for message in mailbox.mbox('YourMboxFile.mbox'):
+for message in mailbox.mbox(mboxFileName):
 	body = more_payloads(message)
-	writer.writerow([message['message-id'], decodeSubject(message['subject']), decodeFrom(message['from']), decodeBody(body)])
+	body = decodeBody(body, contentType(message), contentTransferEncoding(message))
+	writer.writerow([message['message-id'], decodeSubject(message['subject']), decodeFrom(message['from']), body])
+	# writer.writerow([message['message-id'], message['subject'], message['from'], , message['Content-Type'].split("=",1)[1] ,body])
+
+
+
+# --------------------------------------Test--------------------------------------
+# string = 'v823/rT6tGE6SlRZOUotVFctemgtVFctMS45ODggDQrX95hJz7W9eTppUGhvbmUgT1MgOS4yIA0K'
+# string += "=" * ((4 - len(string) % 4) % 4)
+# string = base64.decodestring(string).decode('cp936', 'ignore').encode('utf-8')
+# print(string)
+
+
+
+
 
 
 # --------------------------------------Readme--------------------------------------
