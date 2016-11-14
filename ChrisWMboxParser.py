@@ -5,24 +5,49 @@ import mailbox
 import quopri
 import base64
 import csv
+from datetime import datetime
 
-mboxFileName = '/Users/eph/desktop/quiz_ranger_mails/quiz_ranger_mails_ios/郵件/e- 題目.mbox'
-outPutCSVFileName = '/Users/eph/desktop/quiz_ranger_mails/quiz_ranger_mails_ios_csv/題目.csv'
-codingMethods = ['cp936', 'utf-8', 'big5'] #here is where you edit
+
+mboxFileName = 'your_mbox_file.mbox'
+outPutCSVFileName = 'your_csv_file.csv'
+codingMethods = ['cp936', 'utf-8', 'big5', 'gb2312'] #here is where you edit
 codingMethodPrefix = []
+conversationJSON = {}
+
 
 def main():
 	setupCodingMethodPrefixArray()
 	writer = csv.writer(open(outPutCSVFileName, "wb"))
-	writer.writerow(["message-id", "subject", "from", "body"])
+	writer.writerow(["message-id", "subject", "date", "sender", "addressee", "body"])
 
 	for message in mailbox.mbox(mboxFileName):
+		messageID = message['message-id']
+		subject = decodeStringWithPrefix(message['subject'])
+		date = dateInISO(message)
+		sender = decodeFrom(message['from'])
+		addressee = decodeStringWithPrefix(message['to'])
 		body = decodeBody(more_payloads(message), codingMethod(message), contentTransferEncoding(message))
-		writer.writerow([message['message-id'], decodeStringWithPrefix(message['subject']), decodeFrom(message['from']), body])
-		# writer.writerow([message['message-id'], message['subject'], message['from'], , message['Content-Type'].split("=",1)[1] ,body])
+
+		writer.writerow([messageID, subject, date, sender, addressee, body])
+
 
 
 # ---------------------------------------------Main Function---------------------------------------------
+def dateInISO(message):
+	date = datetime.strptime(message['Date'].split('+')[0], '%a, %d %b %Y %H:%M:%S ')
+	dateInISO = str(date.isoformat()) + 'Z'
+	return dateInISO
+
+def more_payloads(message):
+	body = ""
+	if message.is_multipart():
+		for payload in message.get_payload():
+			body += more_payloads(payload)
+	else:
+		if message.get_content_type() == 'text/plain':
+			body = message.get_payload()
+	return body
+	
 def decodeBody(string, codingMethod, contentTransferEncoding):
 	if contentTransferEncoding == 'quoted-printable':
 		return quopri.decodestring(string).decode(codingMethod, 'ignore').encode('utf-8')
@@ -40,30 +65,20 @@ def decodeFrom(string):
 	return string
 
 def decodeStringWithPrefix(string):
-	for codingMethod in codingMethods:
-		if codingMethod in string.lower():
-			contentTransferEncoding = findStringBetween(string.lower(), codingMethod + '?', '?') # b: base64, q: quopri
-			string = deleteCodingMethodPrefix(string)
-			if contentTransferEncoding == 'b':
-				string += "=" * ((4 - len(string) % 4) % 4)
-				string = base64.decodestring(string).decode(codingMethod, 'ignore').encode('utf-8')
-			elif contentTransferEncoding == 'q':
-				string = quopri.decodestring(string).decode(codingMethod, 'ignore').encode('utf-8')
-			return string
-	return string
-
-
-
-
-def more_payloads(message):
-	body = ""
-	if message.is_multipart():
-		for payload in message.get_payload():
-			body += more_payloads(payload)
-	else:
-		if message.get_content_type() == 'text/plain':
-			body = message.get_payload()
-	return body
+	try:
+		for codingMethod in codingMethods:
+			if codingMethod in string.lower():
+				contentTransferEncoding = findStringBetween(string.lower(), codingMethod + '?', '?') # b: base64, q: quopri
+				string = deleteCodingMethodPrefix(string)
+				if contentTransferEncoding == 'b':
+					string += "=" * ((4 - len(string) % 4) % 4)
+					string = base64.decodestring(string).decode(codingMethod, 'ignore').encode('utf-8')
+				elif contentTransferEncoding == 'q':
+					string = quopri.decodestring(string).decode(codingMethod, 'ignore').encode('utf-8')
+				return string
+		return string
+	except:
+		return string
 
 
 # ---------------------------------------------Utilities---------------------------------------------
@@ -96,6 +111,9 @@ def codingMethod(message):
 	for codingMethod in codingMethods:
 		if codingMethod in contentType.lower():
 			return codingMethod
+	print('please add "' + str(contentType.lower()) + '" to your codingMethods array.')
+	return contentType.lower()
+
 
 def findStringBetween(string, firstString, lastString):
     try:
@@ -104,16 +122,6 @@ def findStringBetween(string, firstString, lastString):
         return string[start:end]
     except ValueError:
         return ""
-
-
-
-
-
-
-
-
-
-
 
 if __name__ == '__main__':
 	main()
