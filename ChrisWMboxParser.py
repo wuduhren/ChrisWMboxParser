@@ -11,6 +11,7 @@ from datetime import datetime
 mboxFileName = 'your_mbox_file.mbox'
 outPutCSVFileName = 'your_csv_file.csv'
 codingMethods = ['cp936', 'utf-8', 'big5', 'gb2312'] #here is where you edit
+
 codingMethodPrefix = []
 conversationJSON = {}
 
@@ -54,6 +55,7 @@ def decodeBody(string, codingMethod, contentTransferEncoding):
 		#this is weird. Mbox says it uses 7bit, but actually quoted-printable.
 		return quopri.decodestring(string).decode(codingMethod, 'ignore').encode('utf-8')
 	else:
+		print('function decodeBody does not support ' + contentTransferEncoding + '-decoding, please add another elif yourselves.')
 		return string
 
 def decodeSenderOrAddressee(string):
