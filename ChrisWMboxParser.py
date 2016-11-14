@@ -11,6 +11,7 @@ from datetime import datetime
 mboxFileName = 'your_mbox_file.mbox'
 outPutCSVFileName = 'your_csv_file.csv'
 codingMethods = ['cp936', 'utf-8', 'big5', 'gb2312'] #here is where you edit
+
 codingMethodPrefix = []
 conversationJSON = {}
 
