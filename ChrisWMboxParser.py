@@ -24,8 +24,8 @@ def main():
 		messageID = message['message-id']
 		subject = decodeStringWithPrefix(message['subject'])
 		date = dateInISO(message)
-		sender = decodeFrom(message['from'])
-		addressee = decodeStringWithPrefix(message['to'])
+		sender = decodeSenderOrAddressee(message['from'])
+		addressee = decodeSenderOrAddressee(message['to'])
 		body = decodeBody(more_payloads(message), codingMethod(message), contentTransferEncoding(message))
 
 		writer.writerow([messageID, subject, date, sender, addressee, body])
@@ -33,10 +33,6 @@ def main():
 
 
 # ---------------------------------------------Main Function---------------------------------------------
-def dateInISO(message):
-	date = datetime.strptime(message['Date'].split('+')[0], '%a, %d %b %Y %H:%M:%S ')
-	dateInISO = str(date.isoformat()) + 'Z'
-	return dateInISO
 
 def more_payloads(message):
 	body = ""
@@ -54,10 +50,13 @@ def decodeBody(string, codingMethod, contentTransferEncoding):
 	elif contentTransferEncoding == 'base64':
 		string += "=" * ((4 - len(string) % 4) % 4)
 		return base64.decodestring(string).decode(codingMethod, 'ignore').encode('utf-8')
+	elif contentTransferEncoding == '7bit':
+		#this is weird. Mbox says it uses 7bit, but actually quoted-printable.
+		return quopri.decodestring(string).decode(codingMethod, 'ignore').encode('utf-8')
 	else:
 		return string
 
-def decodeFrom(string):
+def decodeSenderOrAddressee(string):
 	name = string.rsplit('<', 1)[0]
 	string = string.replace(name, '')
 	string = decodeStringWithPrefix(name) + string
@@ -114,7 +113,6 @@ def codingMethod(message):
 	print('please add "' + str(contentType.lower()) + '" to your codingMethods array.')
 	return contentType.lower()
 
-
 def findStringBetween(string, firstString, lastString):
     try:
         start = string.index(firstString) + len(firstString)
@@ -122,6 +120,11 @@ def findStringBetween(string, firstString, lastString):
         return string[start:end]
     except ValueError:
         return ""
+
+def dateInISO(message):
+	date = datetime.strptime(message['Date'].split('+')[0], '%a, %d %b %Y %H:%M:%S ')
+	dateInISO = str(date.isoformat()) + 'Z'
+	return dateInISO
 
 if __name__ == '__main__':
 	main()
