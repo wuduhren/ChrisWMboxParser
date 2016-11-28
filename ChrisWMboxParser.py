@@ -10,7 +10,7 @@ from datetime import datetime
 
 mboxFileName = 'your_mbox_file.mbox'
 outputCSVFileName = 'your_csv_file.csv'
-codingMethods = ['cp936', 'utf-8', 'big5', 'gb2312'] #here is where you edit
+codingMethods = ['cp936', 'utf-8', 'big5', 'gb2312', "iso-2022-jp", "us-ascii", "euc-kr", "gb18030" ,"gbk"] #here is where you edit
 
 codingMethodPrefix = []
 conversationJSON = {}
